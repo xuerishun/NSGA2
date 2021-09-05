@@ -2,13 +2,13 @@
 #include<time.h>
 #include<iostream>
 #define Dimension 30//基因维数，在这里即ZDT1问题xi的i的最大值
-#define popsize 500 //种群大小
+#define popsize 100//种群大小
 #define mu 20 //
 #define mum 20 //
 
 #define min_range 0.0 //下界
 #define max_range 1.0 //上界
-#define half_popsize (popsize/2)
+#define half_popsize popsize/2
 #define generation 500 //繁衍代数
 #define URAND (rand()/(RAND_MAX+1.0))//产生随机数
 
@@ -34,14 +34,11 @@ namespace NSGA2
     {
        private:
         //全局变量及部分函数声明
-        individual* F[2 * popsize];// [2 * popsize] ;
-        individual* AllocMem(size_t count);
-        void init();
-        void final();
+        individual F[2 * popsize][2 * popsize];
        protected:
-        individual * P;//父代popsize
-        individual * Q;//子代popsize
-        individual * R;//合并2 * popsize
+        individual P[popsize];//父代
+        individual Q[popsize];//子代
+        individual R[2 * popsize];//合并
         void set_p_q();
         //随机产生一个初始父代P，在此基础上采用二元锦标赛选择、
         //交叉和变异操作产生子代Q。P和Q群体规模均为popsize
@@ -53,8 +50,8 @@ namespace NSGA2
         //P,Q,R中元素的个数
         void make_new_pop();//产生新的子代
         void fast_nondominated_sort();//快速非支配排序
-        void calu_crowding_distance(individual* Fi,int n);//拥挤距离计算
-        void f_sort(individual * Fi, int n);//对拥挤距离降序排列
+        void calu_crowding_distance(int i);//拥挤距离计算
+        void f_sort(int i);//对拥挤距离降序排列
         void print(string fileName = "My_NSGA2.txt");//打印结果到文件
         void exportCsv(string fileName = "NSGA2.csv");
         int choice(int a, int b);
@@ -63,6 +60,7 @@ namespace NSGA2
         int len[2 * popsize];//各个变异交叉后的群体Fi的长度的集合
         int len_f;//整个群体rank值
        public:
+        population();//类初始化
         void maincal();//主要操作
     };
     /// <summary>

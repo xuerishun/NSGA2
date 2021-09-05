@@ -24,8 +24,8 @@ namespace NSGA2
     inline int cmp1(const void* a, const void* b)
         //目标函数f1的升序排序
     {
-        const individual * e = (const individual*)a;
-        const individual * f = (const individual*)b;
+        const individual* e = (const individual*)a;
+        const individual* f = (const individual*)b;
         if (e->fvalue[0] == f->fvalue[0])
             return 0;
         else if (e->fvalue[0] < f->fvalue[0])
@@ -99,9 +99,11 @@ namespace NSGA2
         for (i = 0; i < 2 * popsize; i++)
             R[i].f_count();
     }
-    void population::f_sort(individual * Fi,int n)
+    void population::f_sort(int i)
     {
-        qsort(Fi, n, sizeof(individual), cmp_c_d);
+        int n;
+        n = len[i];
+        qsort(F[i], n, sizeof(individual), cmp_c_d);
     }
     /*
     利用二进制锦标赛产生子代：
@@ -188,8 +190,8 @@ namespace NSGA2
     void population::fast_nondominated_sort()
     {
         int i, j, k;
+        individual H[2 * popsize];
         int h_len = 0;
-        individual * H=new individual[2*popsize];
         for (i = 0; i < 2 * popsize; i++)
         {
             R[i].np = 0;//支配个数np
@@ -213,6 +215,7 @@ namespace NSGA2
                 len_f = 1;
                 F[0][len[0]++] = R[i];//将R[i]归并
             }
+
         }
         i = 0;
         while (len[i] != 0)
@@ -239,42 +242,41 @@ namespace NSGA2
                     F[i][j] = H[j];
             }
         }
-        delete H;
     }
     //计算拥挤距离：重点！！！具体解释见其他文章！！！
-    void population::calu_crowding_distance(individual *Fi,int n)
+    void population::calu_crowding_distance(int i)
     {
-        //int n = len[i];
+        int n = len[i];
         double m_max, m_min;
         int j;
         for (j = 0; j < n; j++)
-            Fi[j].crowding_distance = 0;
-        Fi[0].crowding_distance = Fi[n - 1].crowding_distance = 0xffffff;
-        qsort(Fi, n, sizeof(individual), cmp1);
+            F[i][j].crowding_distance = 0;
+        F[i][0].crowding_distance = F[i][n - 1].crowding_distance = 0xffffff;
+        qsort(F[i], n, sizeof(individual), cmp1);
         m_max = -0xfffff;
         m_min = 0xfffff;
         for (j = 0; j < n; j++)
         {
-            if (m_max < Fi[j].fvalue[0])
-                m_max = Fi[j].fvalue[0];
-            if (m_min > Fi[j].fvalue[0])
-                m_min = Fi[j].fvalue[0];
+            if (m_max < F[i][j].fvalue[0])
+                m_max = F[i][j].fvalue[0];
+            if (m_min > F[i][j].fvalue[0])
+                m_min = F[i][j].fvalue[0];
         }
         for (j = 1; j < n - 1; j++)
-            Fi[j].crowding_distance += (Fi[j + 1].fvalue[0] - Fi[j - 1].fvalue[0]) / (m_max - m_min);
-        Fi[0].crowding_distance = Fi[n - 1].crowding_distance = 0xffffff;
-        qsort(Fi, n, sizeof(individual), cmp2);
+            F[i][j].crowding_distance += (F[i][j + 1].fvalue[0] - F[i][j - 1].fvalue[0]) / (m_max - m_min);
+        F[i][0].crowding_distance = F[i][n - 1].crowding_distance = 0xffffff;
+        qsort(F[i], n, sizeof(individual), cmp2);
         m_max = -0xfffff;
         m_min = 0xfffff;
         for (j = 0; j < n; j++)
         {
-            if (m_max < Fi[j].fvalue[1])
-                m_max = Fi[j].fvalue[1];
-            if (m_min > Fi[j].fvalue[1])
-                m_min = Fi[j].fvalue[1];
+            if (m_max < F[i][j].fvalue[1])
+                m_max = F[i][j].fvalue[1];
+            if (m_min > F[i][j].fvalue[1])
+                m_min = F[i][j].fvalue[1];
         }
         for (j = 1; j < n - 1; j++)
-            Fi[j].crowding_distance += (Fi[j + 1].fvalue[1] - Fi[j - 1].fvalue[1]) / (m_max - m_min);
+            F[i][j].crowding_distance += (F[i][j + 1].fvalue[1] - F[i][j - 1].fvalue[1]) / (m_max - m_min);
     }
     //采集多样性的选择
     int population::choice(int a, int b)
@@ -316,14 +318,14 @@ namespace NSGA2
     {
         FILE* p;
         errno_t err_no = fopen_s(&p, fileName.c_str(), "w+");
-        int i;
-        //fprintf(p, "XuYi All Rights Reserved.\nWelcome to OmegaXYZ: www.omegaxyz.com\n");
-        //fprintf(p, "Problem ZDT1\n");
+        int i, j;
+        fprintf(p, "XuYi All Rights Reserved.\nWelcome to OmegaXYZ: www.omegaxyz.com\n");
+        fprintf(p, "Problem ZDT1\n");
         fprintf(p, "F1,F2\n");
-        //qsort(P, popsize, sizeof(individual), cmp1);
+        qsort(P, popsize, sizeof(individual), cmp1);
         for (i = 0; i < popsize; i++)
         {
-            fprintf(p, "%0.6f,%0.6f\n", P[i].fvalue[0], P[i].fvalue[1]);
+            fprintf(p, "%0.3f,%0.3f\n", P[i].fvalue[0], P[i].fvalue[1]);
         }
         fclose(p);
         cout << "优化结果导出到[" << fileName << "]，优化结束" << endl;
@@ -331,54 +333,38 @@ namespace NSGA2
     //主要操作函数
     void population::maincal()
     {
-        init();
-        try
+        int gen, i, j;
+        gen = generation;
+        make_new_pop();
+        while (gen--)
         {
-            int gen, i, j;
-            gen = generation;
-            make_new_pop();
-            while (gen--)
+            printf("The %d generation\n", generation-gen);
+            set_p_q();
+            fast_nondominated_sort();
+            Pnum = 0;
+            i = 0;
+            while (Pnum + len[i] <= popsize)
             {
-                if ((gen % 100) == 0)
-                    printf("The %d generation\n", generation - gen);
-                set_p_q();
-                fast_nondominated_sort();
-                Pnum = 0;
-                i = 0;
-                while (Pnum + len[i] <= popsize)
-                {
-                    calu_crowding_distance(F[i], len[i]);
-                    for (j = 0; j < len[i]; j++)
-                        P[Pnum++] = F[i][j];
-                    i++;
-                    if (i >= len_f)break;
-                }
-                if (i < len_f)
-                {
-                    calu_crowding_distance(F[i], len[i]);
-                    f_sort(F[i], len[i]);
-                }
-                for (j = 0; j < popsize - Pnum; j++)
+                calu_crowding_distance(i);
+                for (j = 0; j < len[i]; j++)
                     P[Pnum++] = F[i][j];
-                make_new_pop();
+                i++;
+                if (i >= len_f)break;
             }
-            print();
-            exportCsv();
+            if (i < len_f)
+            {
+                calu_crowding_distance(i);
+                f_sort(i);
+            }
+            for (j = 0; j < popsize - Pnum; j++)
+                P[Pnum++] = F[i][j];
+            make_new_pop();
         }
-        catch(...)
-        {
-            final();
-        }
+        print();
+        exportCsv();
     }
-    void population::init()
+    population::population()
     {
-        for (int i = 0; i < 2 * popsize; i++)
-        {
-            F[i] = AllocMem(2 * popsize);
-        };
-        P = AllocMem(popsize);
-        Q = AllocMem(popsize);
-        R = AllocMem(2 * popsize);
         srand((unsigned int)(time(0)));
         int i;
         for (i = 0; i < popsize; i++)
@@ -392,27 +378,5 @@ namespace NSGA2
         Pnum = popsize;
         Qnum = 0;
         Rnum = 0;
-    }
-    void population::final()
-    {
-        for (int i = 0; i < 2 * popsize; i++)
-            operator delete[](F[i]);
-        operator delete[](P);
-        operator delete[](Q);
-        operator delete[](R);
-    }
-    individual * population::AllocMem(size_t count)
-    {
-        //分配足够的raw memory，给一个预备容纳popsize个individual objects的数组使用
-        void* rawMemory = operator new(count * sizeof(individual));
-        //让bestPieces指向此内存，使这块内存被视为一个EquipmentPiece数组
-        individual* a = reinterpret_cast<individual*>(rawMemory);
-        //利用"placement new"构造这块内存中的individual objects。
-        int IDNumber = 0;
-        for (int i = 0; i < popsize; i++)
-        {
-            new (&a[i])individual();
-        }
-        return a;
     }
 }
